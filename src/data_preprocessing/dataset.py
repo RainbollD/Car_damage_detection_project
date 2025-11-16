@@ -4,7 +4,7 @@ import numpy as np
 from torch.utils.data import Dataset
 
 
-class CarDamageDataset(Dataset):
+class CarSegmentationDataset(Dataset):
     def __init__(self, df, transform=None):
         """
         Dataset для сегментации деталей автомобиля и повреждений
@@ -13,6 +13,7 @@ class CarDamageDataset(Dataset):
             df: DataFrame с колонками ['image_path', 'mask_path']
             transform: Albumentations трансформации
         """
+        self.rgb2id = None
         self.df = df
         self.transform = transform
 
