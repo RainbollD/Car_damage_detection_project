@@ -11,11 +11,13 @@ class CarPartsDetector:
 
         self.image_processor = AutoImageProcessor.from_pretrained(model_path)
         self.model = AutoModelForSemanticSegmentation.from_pretrained(model_path)
+
         self.model.to(self.device)
         self.model.eval()
 
     def predict(self, image_path):
         """Предсказание для одного изображения"""
+
         image = cv2.cvtColor(cv2.imread(image_path), cv2.COLOR_BGR2RGB)
 
         encoding = self.image_processor(image, return_tensors="pt")
@@ -31,6 +33,7 @@ class CarPartsDetector:
 
     def _postprocess_mask(self, logits, original_shape):
         """Постобработка маски"""
+
         upsampled_logits = torch.nn.functional.interpolate(
             logits,
             size=original_shape[:-1],
@@ -43,6 +46,7 @@ class CarPartsDetector:
 
     def visualize_prediction(self, image, mask, alpha=0.7):
         """Визуализация предсказания"""
+
         color_mask = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
 
         for label_id in np.unique(mask):
@@ -57,6 +61,7 @@ class CarPartsDetector:
 
     def _get_color_for_label(self, label_id):
         """Генерирует цвет для метки"""
+
         colors = [
             (255, 0, 0),  # красный
             (0, 255, 0),  # зеленый
