@@ -1,5 +1,6 @@
 import albumentations as A
 
+
 def get_color_augmentations():
     """Аугментации только для цвета изображения"""
     return A.Compose([
@@ -16,6 +17,7 @@ def get_color_augmentations():
         A.HueSaturationValue(p=0.4),
         A.RandomGamma(p=0.3),
     ])
+
 
 def get_shape_augmentations():
     """Аугментации для формы изображения"""
