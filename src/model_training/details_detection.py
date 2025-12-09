@@ -24,14 +24,13 @@ class SegmentationTrainer:
 
     def setup_data(self, data_dir):
         """Подготовка данных и создание datasets"""
-        # Загрузка информации о классах
-        labels_df = pd.read_csv(os.path.join(data_dir, "masks_info.csv"), sep=",", header = 0)
+
+        labels_df = pd.read_csv(os.path.join(data_dir, "masks_info.csv"), sep=",", header=0)
         labels_df["elements"] = labels_df["elements"].str.replace(" ", "_")
 
-        # Добавляем background класс
         labels_df.loc[len(labels_df)] = ["background", "#ffffff"]
         self.background_id = len(labels_df) - 1
-        # Создаем маппинги
+
         self.rgb2id = {
             tuple(ImageColor.getrgb(labels_df.iloc[i]["color"])): i
             for i in range(len(labels_df))
@@ -40,10 +39,8 @@ class SegmentationTrainer:
         self.label2id = {v: k for k, v in self.id2label.items()}
         self.num_labels = len(self.id2label)
 
-        # Создаем DataFrame с путями
         paths_df = self._create_paths_df(data_dir)
 
-        # Разделяем на train/val/test
         train_df, nontrain_df = train_test_split(
             paths_df,
             test_size=self.config.val_percent + self.config.test_percent,
@@ -55,10 +52,9 @@ class SegmentationTrainer:
             random_state=42
         )
 
-        # Создаем datasets
         self.train_dataset = CarSegmentationDataset(train_df)
         self.eval_dataset = CarSegmentationDataset(eval_df)
-        self.test_dataset = CarSegmentationDataset(test_df)  # Устанавливаем маппинг цветов
+        self.test_dataset = CarSegmentationDataset(test_df)
         for dataset in [self.train_dataset, self.eval_dataset, self.test_dataset]:
             dataset.set_rgb_mapping(self.rgb2id)
 
@@ -109,22 +105,18 @@ class SegmentationTrainer:
 
         def transformations(data):
             if is_train:
-                # Аугментации формы
                 data = get_shape_augmentations()(
                     image=data["image"],
                     annotation=data["annotation"]
                 )
-                # Аугментации цвета
                 data["image"] = get_color_augmentations()(image=data["image"])["image"]
 
-            # Препроцессинг для модели
             inputs = self.image_processor(
                 [data["image"]],
                 [data["annotation"]],
                 return_tensors="pt"
             )
 
-            # Убираем batch dimension т.к. работаем с одним изображением
             inputs['pixel_values'] = inputs['pixel_values'][0]
             inputs['labels'] = inputs['labels'][0]
 
@@ -139,7 +131,6 @@ class SegmentationTrainer:
         logits, labels = pred
         logits_tensor = torch.from_numpy(logits)
 
-        # Интерполяция к исходному размеру
         logits_tensor = torch.nn.functional.interpolate(
             logits_tensor,
             size=labels.shape[-2:],
@@ -149,7 +140,6 @@ class SegmentationTrainer:
 
         pred_labels = logits_tensor.detach().cpu().numpy()
 
-        # Вычисление метрик
         metrics = metric.compute(
             predictions=pred_labels,
             references=labels,
@@ -157,8 +147,6 @@ class SegmentationTrainer:
             ignore_index=self.background_id,
             reduce_labels=False,
         )
-
-        # Конвертация numpy arrays в lists
 
         for key, value in metrics.items():
             if isinstance(value, np.ndarray):
@@ -168,12 +156,10 @@ class SegmentationTrainer:
 
     def train(self):
         """Запуск обучения"""
-        # Применяем трансформации
         self.train_dataset.set_transform(self.get_transforms(is_train=True))
         self.eval_dataset.set_transform(self.get_transforms(is_train=False))
         self.test_dataset.set_transform(self.get_transforms(is_train=False))
 
-        # Настройка аргументов обучения
         training_args = TrainingArguments(
             output_dir=self.config.output_dir,
             overwrite_output_dir=True,
@@ -190,7 +176,6 @@ class SegmentationTrainer:
             report_to=None,
         )
 
-        # Создаем тренер
         trainer = Trainer(
             model=self.model,
             args=training_args,
@@ -199,14 +184,11 @@ class SegmentationTrainer:
             compute_metrics=self.compute_metrics,
         )
 
-        # Запускаем обучение
         print("Starting training...")
         trainer.train()
 
-        # Сохраняем модель
         trainer.save_model(os.path.join(self.config.output_dir, "final"))
 
-        # Оценка на тестовой выборке
         test_results = trainer.predict(self.test_dataset)
         print("Test results:", test_results.metrics)
 
