@@ -7,7 +7,7 @@ config = TrainingConfig()
 detector = CarPartsDetector("./models/car_damage_segmentation/final", config)
 
 # Предсказание
-mask, image = detector.predict("path_to_your_image.jpg")
+mask, image = detector.predict("path")
 
 # Визуализация
 result = detector.visualize_prediction(image, mask)
