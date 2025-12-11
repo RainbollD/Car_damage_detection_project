@@ -80,7 +80,7 @@ class SegmentationTrainer:
         """Инициализация модели и процессора"""
         self.image_processor = AutoImageProcessor.from_pretrained(
             self.config.model_name,
-            reduce_labels=True
+            reduce_labels=False
         )
 
         model_class = self._get_model_class()
@@ -168,6 +168,7 @@ class SegmentationTrainer:
             per_device_train_batch_size=self.config.batch_size,
             per_device_eval_batch_size=self.config.batch_size,
             gradient_accumulation_steps=self.config.gradient_accumulation_steps,
+            save_strategy="steps",
             eval_strategy="steps",
             save_steps=self.config.save_steps,
             eval_steps=self.config.eval_steps,
@@ -188,6 +189,7 @@ class SegmentationTrainer:
         trainer.train()
 
         trainer.save_model(os.path.join(self.config.output_dir, "final"))
+        self.image_processor.save_pretrained(os.path.join(self.config.output_dir, "final"))
 
         test_results = trainer.predict(self.test_dataset)
         print("Test results:", test_results.metrics)
