@@ -17,7 +17,6 @@ def main():
         learning_rate=1e-5,
     )
 
-
     print("Setting trainer...")
     trainer = SegmentationTrainer(config)
 
