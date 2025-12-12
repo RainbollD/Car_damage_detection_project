@@ -9,12 +9,12 @@ from src.model_training.details_detection import SegmentationTrainer
 
 def main():
     config = TrainingConfig(
-        model_name=".models/car_damage_segmentation/final",
+        model_name="nvidia/mit-b5",
         data_dir="./data/classification_details",
         output_dir="./models/car_damage_segmentation",
         batch_size=4,
-        num_epochs=30,
-        learning_rate=1e-5,
+        num_epochs=50,
+        learning_rate=1e-5
     )
 
     print("Setting trainer...")
