@@ -11,7 +11,8 @@ def main():
     config = TrainingConfig(
         model_name="nvidia/mit-b5",
         data_dir="./data/classification_details",
-        output_dir="./models/car_damage_segmentation"
+        output_dir="./models/car_damage_segmentation",
+        batch_size=4
     )
 
     print("Setting trainer...")
