@@ -12,6 +12,9 @@ class CarPartsDetector:
         self.image_processor = AutoImageProcessor.from_pretrained(model_path)
         self.model = AutoModelForSemanticSegmentation.from_pretrained(model_path)
 
+        self.id2label = self.model.config.id2label
+        self.label2id = self.model.config.label2id
+
         self.model.to(self.device)
         self.model.eval()
 
@@ -46,11 +49,10 @@ class CarPartsDetector:
 
     def visualize_prediction(self, image, mask, alpha=0.7):
         """Визуализация предсказания"""
-
         color_mask = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
 
         for label_id in np.unique(mask):
-            if label_id < len(self.config.id2label):
+            if label_id in self.id2label:
                 color = self._get_color_for_label(label_id)
                 color_mask[mask == label_id] = color
 
