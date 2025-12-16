@@ -20,7 +20,9 @@ class TrainingConfig:
     batch_size: int = 16
     gradient_accumulation_steps: int = 2
 
-    save_steps: int = 25
-    eval_steps: int = 10
-    logging_steps: int = 10
+    save_steps: int = 100
+    eval_steps: int = 100
+    logging_steps: int = 100
     save_total_limit: int = 4
+
+    early_stopping_patience: int = 5
