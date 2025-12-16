@@ -7,7 +7,7 @@ from transformers import (
     AutoModelForSemanticSegmentation,
     UperNetForSemanticSegmentation,
     Trainer,
-    TrainingArguments
+    TrainingArguments, EarlyStoppingCallback
 )
 from sklearn.model_selection import train_test_split
 import pandas as pd
@@ -175,6 +175,7 @@ class SegmentationTrainer:
             logging_steps=self.config.logging_steps,
             save_total_limit=self.config.save_total_limit,
             report_to=None,
+            load_best_model_at_end=True,
         )
 
         trainer = Trainer(
@@ -183,6 +184,7 @@ class SegmentationTrainer:
             train_dataset=self.train_dataset,
             eval_dataset=self.eval_dataset,
             compute_metrics=self.compute_metrics,
+            callbacks=[EarlyStoppingCallback(early_stopping_patience=self.config.early_stopping_patience)]
         )
 
         print("Starting training...")
