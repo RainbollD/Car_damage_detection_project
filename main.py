@@ -10,7 +10,7 @@ from src.model_training.details_detection import SegmentationTrainer
 def main():
     config = TrainingConfig(
         model_name="nvidia/mit-b5",
-        data_dir="./data/classification_details",
+        data_dir="./data/classification_details/big_dataset",
         output_dir="./models/car_damage_segmentation",
         batch_size=4,
         num_epochs=50,
