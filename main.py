@@ -1,5 +1,6 @@
 import os
 import sys
+import argparse
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
@@ -8,9 +9,14 @@ from src.model_training.details_detection import SegmentationTrainer
 
 
 def main():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--data_dir", type=str, required=True, help="Path to the data directory")
+    args = parser.parse_args()
+
     config = TrainingConfig(
         model_name="nvidia/mit-b5",
-        data_dir="./data/classification_details/big_dataset",
+        data_dir=args.data_dir,
         output_dir="./models/car_damage_segmentation",
         batch_size=4,
         num_epochs=50,
