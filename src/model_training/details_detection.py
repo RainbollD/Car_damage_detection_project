@@ -7,7 +7,9 @@ from transformers import (
     AutoModelForSemanticSegmentation,
     UperNetForSemanticSegmentation,
     Trainer,
-    TrainingArguments, EarlyStoppingCallback
+    TrainingArguments, EarlyStoppingCallback,
+    SegformerForSemanticSegmentation,
+
 )
 from sklearn.model_selection import train_test_split
 import pandas as pd
@@ -86,6 +88,7 @@ class SegmentationTrainer:
         model_class = self._get_model_class()
         self.model = model_class.from_pretrained(
             self.config.model_name,
+            num_labels=len(self.id2label),
             id2label=self.id2label,
             label2id=self.label2id,
             ignore_mismatched_sizes=True
@@ -93,12 +96,14 @@ class SegmentationTrainer:
 
     def _get_model_class(self):
         """Определяет класс модели по имени"""
-        if "mit-b" in self.config.model_name:
-            return AutoModelForSemanticSegmentation
-        elif "upernet" in self.config.model_name:
+        name = self.config.model_name.lower()
+
+        if "segformer" in name:
+            return SegformerForSemanticSegmentation
+        elif "upernet" in name:
             return UperNetForSemanticSegmentation
         else:
-            raise ValueError(f"Unsupported model: {self.config.model_name}")
+            return AutoModelForSemanticSegmentation
 
     def get_transforms(self, is_train=False):
         """Возвращает функцию трансформаций для dataset"""
