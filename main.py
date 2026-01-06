@@ -11,11 +11,11 @@ from src.model_training.details_detection import SegmentationTrainer
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--data_dir", type=str, required=True, help="Path to the data directory")
+    parser.add_argument("data_dir", type=str, help="Path to the data directory")
     args = parser.parse_args()
 
     config = TrainingConfig(
-        model_name="nvidia/mit-b5",
+        model_name="nvidia/segformer-b5-finetuned-ade-640-640",
         data_dir=args.data_dir,
         output_dir="./models/car_damage_segmentation",
         batch_size=4,
