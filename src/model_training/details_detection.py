@@ -30,8 +30,14 @@ class SegmentationTrainer:
         labels_df = pd.read_csv(os.path.join(data_dir, "masks_info.csv"), sep=",", header=0)
         labels_df["elements"] = labels_df["elements"].str.replace(" ", "_")
 
-        labels_df.loc[len(labels_df)] = ["background", "#ffffff"]
-        self.background_id = len(labels_df) - 1
+        if not ((labels_df["elements"] == "background") | (labels_df["color"].str.lower() == "#ffffff")).any():
+            labels_df.loc[len(labels_df)] = ["background", "#ffffff"]
+        self.background_id = labels_df.index[labels_df["elements"] == "background"][0]
+
+        self.label_colors = [
+            list(ImageColor.getrgb(labels_df.iloc[i]["color"]))
+            for i in range(len(labels_df))
+        ]
 
         self.rgb2id = {
             tuple(ImageColor.getrgb(labels_df.iloc[i]["color"])): i
@@ -93,6 +99,7 @@ class SegmentationTrainer:
             label2id=self.label2id,
             ignore_mismatched_sizes=True
         )
+        self.model.config.label_colors = self.label_colors
 
     def _get_model_class(self):
         """Определяет класс модели по имени"""
@@ -110,10 +117,9 @@ class SegmentationTrainer:
 
         def transformations(data):
             if is_train:
-                data = get_shape_augmentations()(
-                    image=data["image"],
-                    annotation=data["annotation"]
-                )
+                data = get_shape_augmentations()(image=data["image"], annotation=data["annotation"])
+                data["image"] = data["image"]
+                data["annotation"] = data["annotation"]
                 data["image"] = get_color_augmentations()(image=data["image"])["image"]
 
             inputs = self.image_processor(
@@ -133,8 +139,12 @@ class SegmentationTrainer:
         """Вычисление метрик для оценки"""
         metric = evaluate.load("mean_iou")
 
-        logits, labels = pred
-        logits_tensor = torch.from_numpy(logits)
+        logits = pred.predictions
+        labels = pred.label_ids
+
+        logits_tensor = torch.tensor(logits)
+        if logits_tensor.ndim == 3:
+            logits_tensor = logits_tensor.unsqueeze(0)
 
         logits_tensor = torch.nn.functional.interpolate(
             logits_tensor,
@@ -181,6 +191,11 @@ class SegmentationTrainer:
             save_total_limit=self.config.save_total_limit,
             report_to=None,
             load_best_model_at_end=True,
+            remove_unused_columns=self.config.remove_unused_columns,
+            metric_for_best_model="mean_iou",
+            greater_is_better=True,
+            seed=self.config.seed,
+            data_seed=self.config.data_seed,
         )
 
         trainer = Trainer(
