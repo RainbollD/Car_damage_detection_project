@@ -26,3 +26,8 @@ class TrainingConfig:
     save_total_limit: int = 4
 
     early_stopping_patience: int = 5
+
+    remove_unused_columns: bool = False
+
+    seed: int = 42
+    data_seed: int = 42
