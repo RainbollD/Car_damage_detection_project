@@ -14,6 +14,7 @@ class CarPartsDetector:
 
         self.id2label = self.model.config.id2label
         self.label2id = self.model.config.label2id
+        self.label_colors = getattr(self.model.config, "label_colors", None)
 
         self.model.to(self.device)
         self.model.eval()
@@ -52,9 +53,11 @@ class CarPartsDetector:
         color_mask = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
 
         for label_id in np.unique(mask):
-            if label_id in self.id2label:
-                color = self._get_color_for_label(label_id)
-                color_mask[mask == label_id] = color
+            key_int = int(label_id)
+            key_str = str(key_int)
+            if key_int in self.id2label or key_str in self.id2label:
+                color = self._get_color_for_label(key_int)
+                color_mask[mask == key_int] = color
 
         blended = image * (1 - alpha) + color_mask * alpha
         blended = blended.astype(np.uint8)
@@ -64,18 +67,14 @@ class CarPartsDetector:
     def _get_color_for_label(self, label_id):
         """Генерирует цвет для метки"""
 
-        colors = [
-            (255, 0, 0),  # красный
-            (0, 255, 0),  # зеленый
-            (0, 0, 255),  # синий
-            (255, 255, 0),  # желтый
-            (255, 0, 255),  # пурпурный
-            (0, 255, 255),  # голубой
-            (128, 0, 0),  # темно-красный
-            (0, 128, 0),  # темно-зеленый
-            (0, 0, 128),  # темно-синий
-            (128, 128, 0),  # оливковый
-            (128, 0, 128),  # фиолетовый
-            (0, 128, 128),  # темно-голубой
-        ]
-        return colors[label_id % len(colors)]
+        if not self.label_colors:
+            raise ValueError(
+                "Label colors palette is missing. Ensure the model was trained with "
+                "`label_colors` saved in the config."
+            )
+        if label_id >= len(self.label_colors):
+            raise ValueError(
+                f"Label id {label_id} is out of range for palette size "
+                f"{len(self.label_colors)}."
+            )
+        return tuple(self.label_colors[label_id])
