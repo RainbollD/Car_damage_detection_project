@@ -15,9 +15,9 @@ def main():
     args = parser.parse_args()
 
     config = TrainingConfig(
-        model_name="nvidia/segformer-b5-finetuned-ade-640-640",
+        model_name="nvidia/segformer-b5-finetuned-ade-512-512",
         data_dir=args.data_dir,
-        output_dir="./models/car_damage_segmentation",
+        output_dir="models/segformer-b5/car_damage_segmentation",
         batch_size=4,
         num_epochs=50,
         learning_rate=1e-5
