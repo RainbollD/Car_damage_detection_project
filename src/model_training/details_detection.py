@@ -235,7 +235,7 @@ class SegmentationTrainer:
             gradient_accumulation_steps=self.config.gradient_accumulation_steps,
 
             save_strategy="steps",
-            evaluation_strategy="steps",  # <-- ВАЖНО: не eval_strategy
+            eval_strategy="steps",
             save_steps=self.config.save_steps,
             eval_steps=self.config.eval_steps,
             logging_steps=self.config.logging_steps,
