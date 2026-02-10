@@ -17,7 +17,7 @@ class TrainingConfig:
 
     num_epochs: int = 50
     learning_rate: float = 2e-5
-    batch_size: int = 8
+    batch_size: int = 4
     gradient_accumulation_steps: int = 2
 
     save_steps: int = 100
