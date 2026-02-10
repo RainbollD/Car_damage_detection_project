@@ -9,19 +9,12 @@ from src.model_training.details_detection import SegmentationTrainer
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    # parser = argparse.ArgumentParser()
+    #
+    # parser.add_argument("data_dir", type=str, help="Path to the dataset directory")
+    # args = parser.parse_args()
 
-    parser.add_argument("data_dir", type=str, help="Path to the data directory")
-    args = parser.parse_args()
-
-    config = TrainingConfig(
-        model_name="nvidia/segformer-b5-finetuned-ade-512-512",
-        data_dir=args.data_dir,
-        output_dir="models/segformer-b5/car_damage_segmentation",
-        batch_size=4,
-        num_epochs=50,
-        learning_rate=1e-5
-    )
+    config = TrainingConfig()
 
     print("Setting trainer...")
     trainer = SegmentationTrainer(config)
