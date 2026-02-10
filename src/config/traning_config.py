@@ -10,13 +10,13 @@ class TrainingConfig:
     model_name: str = "nvidia/mit-b5"
 
     output_dir: str = "./models/car_damage_segmentation"
-    data_dir: str = "./data"
+    data_dir: str = "./dataset/classification_dent"
 
     val_percent: float = 0.1
     test_percent: float = 0.05
 
-    num_epochs: int = 20
-    learning_rate: float = 3e-5
+    num_epochs: int = 50
+    learning_rate: float = 2e-5
     batch_size: int = 16
     gradient_accumulation_steps: int = 2
 
