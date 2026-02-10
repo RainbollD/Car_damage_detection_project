@@ -210,8 +210,8 @@ class SegmentationTrainer:
         print("Starting training...")
         trainer.train()
 
-        trainer.save_model(os.path.join(self.config.output_dir, "final_small_dataset"))
-        self.image_processor.save_pretrained(os.path.join(self.config.output_dir, "final_small_dataset"))
+        trainer.save_model(os.path.join(self.config.output_dir, "final_model"))
+        self.image_processor.save_pretrained(os.path.join(self.config.output_dir, "final_image_processor"))
 
         test_results = trainer.predict(self.test_dataset)
         print("Test results:", test_results.metrics)
