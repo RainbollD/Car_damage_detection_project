@@ -188,7 +188,6 @@ class SegmentationTrainer:
             eval_steps=self.config.eval_steps,
             logging_steps=self.config.logging_steps,
             save_total_limit=self.config.save_total_limit,
-            report_to=None,
             load_best_model_at_end=True,
             remove_unused_columns=self.config.remove_unused_columns,
             metric_for_best_model="mean_iou",
