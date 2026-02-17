@@ -13,23 +13,15 @@ from metrics import compute_iou_metrics
 from utils import set_seed
 import os
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default=None, help="Path to YAML config file")
-    args = parser.parse_args()
 
-    # Загружаем конфиг
-    if args.config and os.path.exists(args.config):
-        config = TrainingConfig.from_yaml(args.config)
-    else:
-        config = TrainingConfig()  # использовать значения по умолчанию
-        print("Using default config.")
+def main():
+    config = TrainingConfig()  # использовать значения по умолчанию
+    print("Using default config.")
 
     set_seed(config.seed)
 
     # 1. Подготовка данных
     print("Splitting dataset...")
-    print(config.root)
     (train_images, train_masks), (val_images, val_masks), (test_images, test_masks) = split_data(
         config.data_dir, config.val_percent, config.test_percent, config.data_seed
     )
@@ -64,32 +56,33 @@ def main():
 
     # 3. Настройка TrainingArguments
     training_args = TrainingArguments(
-        output_dir=str(config.output_dir),
+        output_dir=config.output_dir,
         num_train_epochs=config.num_epochs,
         per_device_train_batch_size=config.batch_size,
         per_device_eval_batch_size=config.batch_size,
         gradient_accumulation_steps=config.gradient_accumulation_steps,
         learning_rate=config.learning_rate,
-        eval_strategy="steps",
+        evaluation_strategy="steps",
         eval_steps=config.eval_steps,
         save_steps=config.save_steps,
         logging_steps=config.logging_steps,
         save_total_limit=config.save_total_limit,
         load_best_model_at_end=True,
-        metric_for_best_model="mean_iou",
+        metric_for_best_model="eval_mean_iou",  # Изменено: добавили префикс eval_
         greater_is_better=True,
         remove_unused_columns=config.remove_unused_columns,
         seed=config.seed,
-        report_to="none",
+        report_to="none",  # или "wandb" при желании
+        dataloader_num_workers=4,  # Добавлено для ускорения загрузки данных
     )
 
-    # 4. Trainer
+    # 4. Trainer - ИСПРАВЛЕНО: используем image_processor, а не tokenizer
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
-        tokenizer=processor,
+        processing_class=processor,  # В новых версиях transformers нужно использовать processing_class
         data_collator=data_collator,
         compute_metrics=compute_iou_metrics,
         callbacks=[EarlyStoppingCallback(early_stopping_patience=config.early_stopping_patience)]
@@ -109,6 +102,7 @@ def main():
     print("Test results:")
     for k, v in test_results.items():
         print(f"  {k}: {v:.4f}")
+
 
 if __name__ == "__main__":
     main()
