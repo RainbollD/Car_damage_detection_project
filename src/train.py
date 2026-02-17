@@ -56,13 +56,13 @@ def main():
 
     # 3. Настройка TrainingArguments
     training_args = TrainingArguments(
-        output_dir=config.output_dir,
+        output_dir=str(config.output_dir),
         num_train_epochs=config.num_epochs,
         per_device_train_batch_size=config.batch_size,
         per_device_eval_batch_size=config.batch_size,
         gradient_accumulation_steps=config.gradient_accumulation_steps,
         learning_rate=config.learning_rate,
-        evaluation_strategy="steps",
+        eval_strategy="steps",
         eval_steps=config.eval_steps,
         save_steps=config.save_steps,
         logging_steps=config.logging_steps,
