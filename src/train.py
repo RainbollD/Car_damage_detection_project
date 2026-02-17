@@ -13,9 +13,8 @@ from metrics import compute_iou_metrics
 from utils import set_seed
 import os
 
-
 def main():
-    config = TrainingConfig()  # использовать значения по умолчанию
+    config = TrainingConfig()
     print("Using default config.")
 
     set_seed(config.seed)
@@ -23,19 +22,26 @@ def main():
     # 1. Подготовка данных
     print("Splitting dataset...")
     (train_images, train_masks), (val_images, val_masks), (test_images, test_masks) = split_data(
-        config.data_dir, config.val_percent, config.test_percent, config.data_seed
+        str(config.data_dir), config.val_percent, config.test_percent, config.data_seed
     )
     print(f"Train: {len(train_images)}, Val: {len(val_images)}, Test: {len(test_images)}")
 
-    image_transform, mask_transform = get_transforms(config.image_size)
-
+    # Создаём трансформации: для train с аугментациями, для val/test без
     train_transform = get_transforms(config.image_size, is_training=True)
     val_transform = get_transforms(config.image_size, is_training=False)
 
-    train_dataset = CarDamageDataset(train_images, train_masks, train_transform, config.damage_color,
-                                     config.color_tolerance)
-    val_dataset = CarDamageDataset(val_images, val_masks, val_transform, config.damage_color,
-                                   config.color_tolerance)
+    train_dataset = CarDamageDataset(
+        train_images, train_masks,
+        train_transform,
+        config.damage_color,
+        config.color_tolerance
+    )
+    val_dataset = CarDamageDataset(
+        val_images, val_masks,
+        val_transform,
+        config.damage_color,
+        config.color_tolerance
+    )
 
     # 2. Загрузка модели и процессора
     print("Loading model...")
@@ -46,7 +52,7 @@ def main():
         ignore_mismatched_sizes=True
     )
 
-    # 3. Настройка TrainingArguments
+    # 3. Настройка TrainingArguments (добавили планировщик и warmup)
     training_args = TrainingArguments(
         output_dir=str(config.output_dir),
         num_train_epochs=config.num_epochs,
@@ -54,27 +60,29 @@ def main():
         per_device_eval_batch_size=config.batch_size,
         gradient_accumulation_steps=config.gradient_accumulation_steps,
         learning_rate=config.learning_rate,
+        warmup_ratio=0.1,
+        lr_scheduler_type="cosine",
         eval_strategy="steps",
         eval_steps=config.eval_steps,
         save_steps=config.save_steps,
         logging_steps=config.logging_steps,
         save_total_limit=config.save_total_limit,
         load_best_model_at_end=True,
-        metric_for_best_model="eval_mean_iou",  # Изменено: добавили префикс eval_
+        metric_for_best_model="eval_mean_iou",
         greater_is_better=True,
-        remove_unused_columns=config.remove_unused_columns,
+        remove_unused_columns=False,
         seed=config.seed,
-        report_to="none",  # или "wandb" при желании
-        dataloader_num_workers=4,  # Добавлено для ускорения загрузки данных
+        report_to="none",
+        dataloader_num_workers=4,
     )
 
-    # 4. Trainer - ИСПРАВЛЕНО: используем image_processor, а не tokenizer
+    # 4. Trainer
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
-        processing_class=processor,  # В новых версиях transformers нужно использовать processing_class
+        processing_class=processor,   # для новых версий transformers
         data_collator=data_collator,
         compute_metrics=compute_iou_metrics,
         callbacks=[EarlyStoppingCallback(early_stopping_patience=config.early_stopping_patience)]
@@ -84,10 +92,9 @@ def main():
     print("Starting training...")
     trainer.train()
 
-    # 6. Сохранение модели
+    # 6. Сохранение
     trainer.save_model()
     processor.save_pretrained(config.output_dir)
-
 
 if __name__ == "__main__":
     main()
