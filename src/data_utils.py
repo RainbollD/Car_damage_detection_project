@@ -77,53 +77,65 @@ def split_data(
 
     return (train_images, train_masks), (val_images, val_masks), (test_images, test_masks)
 
-def get_transforms(image_size: int):
-    """Возвращает трансформации для изображений и масок."""
-    image_transform = transforms.Compose([
-        transforms.Resize((image_size, image_size)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
-    mask_transform = transforms.Compose([
-        transforms.Resize((image_size, image_size), interpolation=transforms.InterpolationMode.NEAREST),
-        transforms.PILToTensor()  # -> torch.int64 (1, H, W)
-    ])
-    return image_transform, mask_transform
+
+# data_utils.py (фрагмент с изменениями)
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+
+
+def get_transforms(image_size: int, is_training: bool = True):
+    """Возвращает трансформации для изображений и масок с аугментациями."""
+    if is_training:
+        # Аугментации для тренировки
+        transform = A.Compose([
+            A.Resize(image_size, image_size),
+            A.HorizontalFlip(p=0.5),
+            A.VerticalFlip(p=0.1),
+            A.RandomBrightnessContrast(p=0.2),
+            A.Rotate(limit=15, p=0.5),
+            A.GaussNoise(var_limit=(10.0, 50.0), p=0.2),
+            A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ToTensorV2()
+        ])
+    else:
+        # Для валидации/теста только ресайз и нормализация
+        transform = A.Compose([
+            A.Resize(image_size, image_size),
+            A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ToTensorV2()
+        ])
+    return transform
+
 
 class CarDamageDataset(Dataset):
-    """Кастомный датасет для сегментации повреждений."""
-    def __init__(
-        self,
-        image_paths: List[Path],
-        mask_paths: List[Path],
-        image_transform,
-        mask_transform,
-        damage_color: Tuple[int, int, int],
-        color_tolerance: int = 10
-    ):
+    def __init__(self, image_paths, mask_paths, transform, damage_color, color_tolerance=10):
         self.image_paths = image_paths
         self.mask_paths = mask_paths
-        self.image_transform = image_transform
-        self.mask_transform = mask_transform
+        self.transform = transform
         self.damage_color = damage_color
         self.color_tolerance = color_tolerance
 
-    def __len__(self):
-        return len(self.image_paths)
-
     def __getitem__(self, idx):
-        image = Image.open(self.image_paths[idx]).convert("RGB")
-        mask_rgb = Image.open(self.mask_paths[idx]).convert("RGB")
-        mask_class = rgb_to_class_mask(mask_rgb, self.damage_color, self.color_tolerance)
+        image = np.array(Image.open(self.image_paths[idx]).convert("RGB"))
+        mask_rgb = np.array(Image.open(self.mask_paths[idx]).convert("RGB"))
 
-        if self.image_transform:
-            image = self.image_transform(image)
-        if self.mask_transform:
-            mask_class = self.mask_transform(mask_class)  # (1, H, W)
+        # Преобразование RGB маски в бинарную (0/1)
+        mask_class = rgb_to_class_mask_numpy(mask_rgb, self.damage_color, self.color_tolerance)
 
-        # Убираем лишнюю размерность и приводим к long
-        mask_class = mask_class.squeeze(0).long()
+        # Применяем аугментации (albumentations работает с numpy)
+        augmented = self.transform(image=image, mask=mask_class)
+        image = augmented['image']  # уже тензор (C, H, W)
+        mask_class = augmented['mask']  # тензор (H, W) с типом int64
+
         return {"pixel_values": image, "labels": mask_class}
+
+
+def rgb_to_class_mask_numpy(mask_np, damage_color, tolerance=10):
+    """Версия для numpy массива."""
+    diff = np.abs(mask_np - damage_color)
+    is_damage = np.all(diff <= tolerance, axis=-1)
+    return is_damage.astype(np.uint8)
+
 
 # Можно определить свой коллатор, если нужно, но DefaultDataCollator подходит
 from transformers import DefaultDataCollator

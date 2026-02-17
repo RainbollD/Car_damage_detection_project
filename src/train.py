@@ -29,21 +29,13 @@ def main():
 
     image_transform, mask_transform = get_transforms(config.image_size)
 
-    train_dataset = CarDamageDataset(
-        train_images, train_masks,
-        image_transform, mask_transform,
-        config.damage_color, config.color_tolerance
-    )
-    val_dataset = CarDamageDataset(
-        val_images, val_masks,
-        image_transform, mask_transform,
-        config.damage_color, config.color_tolerance
-    )
-    test_dataset = CarDamageDataset(
-        test_images, test_masks,
-        image_transform, mask_transform,
-        config.damage_color, config.color_tolerance
-    )
+    train_transform = get_transforms(config.image_size, is_training=True)
+    val_transform = get_transforms(config.image_size, is_training=False)
+
+    train_dataset = CarDamageDataset(train_images, train_masks, train_transform, config.damage_color,
+                                     config.color_tolerance)
+    val_dataset = CarDamageDataset(val_images, val_masks, val_transform, config.damage_color,
+                                   config.color_tolerance)
 
     # 2. Загрузка модели и процессора
     print("Loading model...")
@@ -95,13 +87,6 @@ def main():
     # 6. Сохранение модели
     trainer.save_model()
     processor.save_pretrained(config.output_dir)
-
-    # 7. Оценка на тесте
-    print("Evaluating on test set...")
-    test_results = trainer.evaluate(test_dataset)
-    print("Test results:")
-    for k, v in test_results.items():
-        print(f"  {k}: {v:.4f}")
 
 
 if __name__ == "__main__":

@@ -18,8 +18,8 @@ class TrainingConfig:
     data_dir: Path = root / "dataset" / "classification_dent"
 
     # Data split
-    val_percent: float = 0.1
-    test_percent: float = 0.05
+    val_percent: float = 0.13
+    test_percent: float = 0.02
 
     # Training
     num_epochs: int = 50
