@@ -21,7 +21,7 @@ class TrainingConfig:
     push_to_hub: bool = True
     hf_repo_id: str = "RainbollD/car_dent_segment"
     hf_token: str = None
-    hf_tag: str = "v1.0.0"
+    hf_tag: str = "v1.0.1"
     hf_private: bool = False
 
     # Data split
