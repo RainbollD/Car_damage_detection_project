@@ -56,11 +56,21 @@ def main():
 
     # 2. Загрузка модели и процессора
     print("Loading model...")
-    processor = AutoImageProcessor.from_pretrained(config.model_name)
+    hf_token = getattr(config, 'hf_token', None)
+
+    print(f"Loading model from {config.model_name}...")
+    if hf_token:
+        print("🔐 Using HF token for authentication")
+
+    processor = AutoImageProcessor.from_pretrained(
+        config.model_name,
+        token=hf_token
+    )
     model = AutoModelForSemanticSegmentation.from_pretrained(
         config.model_name,
         num_labels=config.num_classes,
-        ignore_mismatched_sizes=True
+        ignore_mismatched_sizes=True,
+        token=hf_token
     )
 
     # 3. Настройка TrainingArguments
