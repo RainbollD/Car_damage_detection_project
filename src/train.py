@@ -1,5 +1,3 @@
-# train.py
-import argparse
 from transformers import (
     AutoImageProcessor,
     AutoModelForSemanticSegmentation,
@@ -11,7 +9,7 @@ from config import TrainingConfig
 from data_utils import split_data, get_transforms, CarDamageDataset, data_collator
 from metrics import compute_iou_metrics
 from utils import set_seed
-import os
+from hugging_face_tools import *
 
 def main():
     config = TrainingConfig()
@@ -52,7 +50,7 @@ def main():
         ignore_mismatched_sizes=True
     )
 
-    # 3. Настройка TrainingArguments (добавили планировщик и warmup)
+    # 3. Настройка TrainingArguments
     training_args = TrainingArguments(
         output_dir=str(config.output_dir),
         num_train_epochs=config.num_epochs,
@@ -82,7 +80,7 @@ def main():
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
-        processing_class=processor,   # для новых версий transformers
+        processing_class=processor,
         data_collator=data_collator,
         compute_metrics=compute_iou_metrics,
         callbacks=[EarlyStoppingCallback(early_stopping_patience=config.early_stopping_patience)]
@@ -92,9 +90,30 @@ def main():
     print("Starting training...")
     trainer.train()
 
-    # 6. Сохранение
+    # 6. Сохранение локально
+    print("💾 Saving model locally...")
     trainer.save_model()
     processor.save_pretrained(config.output_dir)
+    print(f"✅ Model saved to {config.output_dir}")
+
+    # 7.  Загрузка на Hugging Face (если включено в конфиге)
+    if hasattr(config, 'push_to_hub') and config.push_to_hub:
+        print("\n🚀 Uploading to Hugging Face...")
+        try:
+            push_to_huggingface(
+                model_path=str(config.output_dir),
+                repo_id=config.hf_repo_id,
+                token=getattr(config, 'hf_token', None),
+                tag=getattr(config, 'hf_tag', None),
+                private=getattr(config, 'hf_private', False)
+            )
+            print("✅ Model uploaded to Hugging Face!")
+        except Exception as e:
+            print(f"❌ Failed to upload to Hugging Face: {e}")
+            print("💡 Model saved locally, you can upload manually later")
+    else:
+        print("\n💡 To upload to Hugging Face, set push_to_hub=True in config")
+
 
 if __name__ == "__main__":
     main()
