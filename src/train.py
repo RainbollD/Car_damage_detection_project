@@ -11,8 +11,21 @@ from metrics import compute_iou_metrics
 from utils import set_seed
 from hugging_face_tools import *
 
+import argparse
+
+
 def main():
     config = TrainingConfig()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--hf_token", help="HF token")
+    args = parser.parse_args()
+    if args.hf_token:
+        config.hf_token = args.hf_token
+        print(f"HF token: {config.hf_token}")
+    else:
+        print("NOT FOUND HF TOKEN")
+
     print("Using default config.")
 
     set_seed(config.seed)
