@@ -8,14 +8,21 @@ from pathlib import Path
 @dataclass
 class TrainingConfig:
     # Model
-    model_name: str = "nvidia/mit-b5"
+    model_name: str = "RainbollD/car_dent_segment"
     num_classes: int = 2
     image_size: int = 512
 
     # Paths
     root = Path(__file__).parent.parent
-    output_dir: Path = root / "models" / "car_damage_segmentation"
+    output_dir: Path = root / "models" / "car_damage_segmentation" / "dent"
     data_dir: Path = root / "dataset" / "classification_dent"
+
+    #Hugging Face
+    push_to_hub: bool = True
+    hf_repo_id: str = "RainbollD/car_dent_segment"
+    hf_token: str = None
+    hf_tag: str = "v1.0.0"
+    hf_private: bool = False
 
     # Data split
     val_percent: float = 0.13
