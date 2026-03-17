@@ -12,7 +12,7 @@ path_img = "dataset/classification_dent/images/Car damages 101.png"
 # Загрузка модели
 config = TrainingConfig()
 detector = CarPartsDetector(
-    "/home/lev/PycharmProjects/Car_damage_detection_project/models/nvidia_mit-b5/only_dent/checkpoint-700", config)
+    "/home/lev/PycharmProjects/Car_damage_detection_project/models/nvidia_mit-b5/dent/checkpoint-700", config)
 
 # Предсказание
 mask, image = detector.predict(path_img)
