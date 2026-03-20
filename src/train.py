@@ -88,13 +88,13 @@ def main():
 
     processor = AutoImageProcessor.from_pretrained(
         load_model_name,
-        token=hf_token
+        #token=hf_token
     )
     model = AutoModelForSemanticSegmentation.from_pretrained(
         load_model_name,
         num_labels=config.num_classes,
         ignore_mismatched_sizes=True,
-        token=hf_token
+        #token=hf_token
     )
 
     training_args = TrainingArguments(
