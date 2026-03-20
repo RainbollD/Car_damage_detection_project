@@ -5,6 +5,7 @@ from transformers import (
     TrainingArguments,
     EarlyStoppingCallback
 )
+from huggingface_hub import HfApi, RepositoryNotFoundError
 from config import TrainingConfig
 from data_utils import split_data, get_transforms, CarDamageDataset, data_collator
 from metrics import compute_iou_metrics
@@ -14,30 +15,55 @@ from hugging_face_tools import *
 import argparse
 
 
+def check_model_exists(repo_id, token):
+    api = HfApi()
+    try:
+        api.model_info(repo_id=repo_id, token=token)
+        return True
+    except RepositoryNotFoundError:
+        return False
+    except Exception as e:
+        print(f"Warning while checking model existence: {e}")
+        return False
+
+
 def main():
     config = TrainingConfig()
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--hf_token", help="HF token")
+    parser.add_argument("--dataset_name", help="dataset name")
+    parser.add_argument("--model_name", help="Target HF Repo ID (e.g., username/my-model)")
+
     args = parser.parse_args()
+
     if args.hf_token:
         config.hf_token = args.hf_token
         print(f"HF token: {config.hf_token}")
     else:
-        print("NOT FOUND HF TOKEN")
+        print("NOT FOUND HF TOKEN. Public models only, cannot upload.")
 
-    print("Using default config.")
+    if args.dataset_name:
+        config.data_dir = config.data_dir / args.dataset_name
+    else:
+        print("NOT FOUND DATASET")
+        exit(0)
 
+    if args.model_name:
+        config.model_name = args.model_name
+
+    if not hasattr(config, 'hf_repo_id'):
+        config.hf_repo_id = config.model_name
+
+    print(f"Target Model Repo: {config.model_name}")
     set_seed(config.seed)
 
-    # 1. Подготовка данных
     print("Splitting dataset...")
     (train_images, train_masks), (val_images, val_masks), (test_images, test_masks) = split_data(
         str(config.data_dir), config.val_percent, config.test_percent, config.data_seed
     )
     print(f"Train: {len(train_images)}, Val: {len(val_images)}, Test: {len(test_images)}")
 
-    # Создаём трансформации: для train с аугментациями, для val/test без
     train_transform = get_transforms(config.image_size, is_training=True)
     val_transform = get_transforms(config.image_size, is_training=False)
 
@@ -54,26 +80,25 @@ def main():
         config.color_tolerance
     )
 
-    # 2. Загрузка модели и процессора
-    print("Loading model...")
+    print("Checking model availability on Hugging Face...")
     hf_token = getattr(config, 'hf_token', None)
 
-    print(f"Loading model from {config.model_name}...")
-    if hf_token:
-        print("🔐 Using HF token for authentication")
+    is_new_repo = check_model_exists(config.model_name, hf_token)
+
+    load_model_name = config.model_name
+    print(f"✅ Model '{config.model_name}'")
 
     processor = AutoImageProcessor.from_pretrained(
-        config.model_name,
+        load_model_name,
         token=hf_token
     )
     model = AutoModelForSemanticSegmentation.from_pretrained(
-        config.model_name,
+        load_model_name,
         num_labels=config.num_classes,
         ignore_mismatched_sizes=True,
         token=hf_token
     )
 
-    # 3. Настройка TrainingArguments
     training_args = TrainingArguments(
         output_dir=str(config.output_dir),
         num_train_epochs=config.num_epochs,
@@ -97,7 +122,6 @@ def main():
         dataloader_num_workers=4,
     )
 
-    # 4. Trainer
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -109,33 +133,51 @@ def main():
         callbacks=[EarlyStoppingCallback(early_stopping_patience=config.early_stopping_patience)]
     )
 
-    # 5. Обучение
     print("Starting training...")
     trainer.train()
 
-    # 6. Сохранение локально
-    print("💾 Saving model locally...")
+    print("Saving model locally...")
     trainer.save_model()
     processor.save_pretrained(config.output_dir)
-    print(f"✅ Model saved to {config.output_dir}")
+    print(f"Model saved to {config.output_dir}")
 
-    # 7.  Загрузка на Hugging Face (если включено в конфиге)
-    if hasattr(config, 'push_to_hub') and config.push_to_hub:
-        print("\n🚀 Uploading to Hugging Face...")
-        try:
-            push_to_huggingface(
-                model_path=str(config.output_dir),
-                repo_id=config.hf_repo_id,
-                token=getattr(config, 'hf_token', None),
-                tag=getattr(config, 'hf_tag', None),
-                private=getattr(config, 'hf_private', False)
-            )
-            print("✅ Model uploaded to Hugging Face!")
-        except Exception as e:
-            print(f"❌ Failed to upload to Hugging Face: {e}")
-            print("💡 Model saved locally, you can upload manually later")
+    push_target_repo = config.model_name
+
+    should_push = getattr(config, 'push_to_hub', False) or is_new_repo
+
+    if should_push:
+        if not hf_token:
+            print("❌ Cannot upload without HF Token.")
+        else:
+            print(f"\nPreparing to upload to {push_target_repo}...")
+            try:
+                api = HfApi()
+                api.create_repo(
+                    repo_id=push_target_repo,
+                    token=hf_token,
+                    repo_type="model",
+                    exist_ok=True,
+                    private=getattr(config, 'hf_private', False)
+                )
+                print(f"Repository '{push_target_repo}' verified/created.")
+
+                if 'push_to_huggingface' in globals():
+                    push_to_huggingface(
+                        model_path=str(config.output_dir),
+                        repo_id=push_target_repo,
+                        token=hf_token,
+                        tag=getattr(config, 'hf_tag', None),
+                        private=getattr(config, 'hf_private', False)
+                    )
+                else:
+                    trainer.push_to_hub(push_target_repo, token=hf_token)
+
+                print("✅ Model uploaded to Hugging Face!")
+            except Exception as e:
+                print(f"❌ Failed to upload to Hugging Face: {e}")
+                print("💡 Model saved locally, you can upload manually later")
     else:
-        print("\n💡 To upload to Hugging Face, set push_to_hub=True in config")
+        print("\n💡 Push to Hub disabled in config and repo already existed.")
 
 
 if __name__ == "__main__":
