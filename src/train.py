@@ -5,7 +5,7 @@ from transformers import (
     TrainingArguments,
     EarlyStoppingCallback
 )
-from huggingface_hub import HfApi, RepositoryNotFoundError
+from huggingface_hub import HfApi
 from config import TrainingConfig
 from data_utils import split_data, get_transforms, CarDamageDataset, data_collator
 from metrics import compute_iou_metrics
@@ -20,8 +20,6 @@ def check_model_exists(repo_id, token):
     try:
         api.model_info(repo_id=repo_id, token=token)
         return True
-    except RepositoryNotFoundError:
-        return False
     except Exception as e:
         print(f"Warning while checking model existence: {e}")
         return False
