@@ -43,7 +43,7 @@ class TrainingConfig:
     data_seed: int = 42
 
     # Data specific
-    damage_color: Tuple[int, int, int] = (255, 51, 255)  # RGB код повреждения
+    damage_color: Tuple[int, int, int] = (0, 0, 255)  # RGB код повреждения
     color_tolerance: int = 10  # допуск при сравнении цветов
 
     def save_to_yaml(self, path: str):
