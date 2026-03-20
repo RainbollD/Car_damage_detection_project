@@ -8,7 +8,7 @@ from pathlib import Path
 @dataclass
 class TrainingConfig:
     # Model
-    model_name: str = "nvidia_mit-b5"
+    model_name: str = "nvidia/mit-b5"
     num_classes: int = 2
     image_size: int = 512
 

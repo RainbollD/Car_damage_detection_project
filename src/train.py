@@ -81,7 +81,7 @@ def main():
     print("Checking model availability on Hugging Face...")
     hf_token = getattr(config, 'hf_token', None)
 
-    is_new_repo = check_model_exists(config.model_name, hf_token)
+    #is_new_repo = check_model_exists(config.model_name, hf_token)
 
     load_model_name = config.model_name
     print(f"✅ Model '{config.model_name}'")
