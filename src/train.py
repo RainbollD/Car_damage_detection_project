@@ -11,6 +11,7 @@ from metrics import compute_iou_metrics
 from utils import set_seed
 import argparse
 
+
 def main():
     config = TrainingConfig()
 
@@ -65,7 +66,8 @@ def main():
         config.model_name,
         num_labels=config.num_classes,
         ignore_mismatched_sizes=True,
-        token=getattr(config, 'hf_token', None)
+        token=getattr(config, 'hf_token', None),
+        use_safetensors=True
     )
 
     training_args = TrainingArguments(
@@ -88,7 +90,7 @@ def main():
         remove_unused_columns=False,
         seed=config.seed,
         report_to="none",
-        dataloader_num_workers=4,
+        dataloader_num_workers=4
     )
 
     trainer = Trainer(
@@ -128,6 +130,7 @@ def main():
             print("❌ Cannot upload without HF Token.")
     else:
         print("Push to Hub disabled.")
+
 
 if __name__ == "__main__":
     main()
