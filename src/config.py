@@ -19,7 +19,7 @@ class TrainingConfig:
 
     #Hugging Face
     push_to_hub: bool = True
-    hf_repo_id: str = "RainbollD/car_dent_segment"
+    hf_repo_id: str = "car_scratch_segment"
     hf_token: str = None
     hf_tag: str = "v1.0.1"
     hf_private: bool = False
