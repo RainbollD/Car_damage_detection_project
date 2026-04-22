@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Car Damage Detection</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem; }
+  h1 { margin-bottom: 1.5rem; color: #e94560; font-size: 1.8rem; }
+  .card { background: #16213e; border-radius: 12px; padding: 2rem; width: 100%; max-width: 700px; box-shadow: 0 4px 20px #0005; }
+  .drop-zone { border: 2px dashed #444; border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer; transition: border-color .2s; margin-bottom: 1rem; }
+  .drop-zone:hover, .drop-zone.over { border-color: #e94560; }
+  .drop-zone input { display: none; }
+  #preview { max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 1rem; display: none; }
+  .controls { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+  label { font-size: .9rem; color: #aaa; }
+  input[type=range] { accent-color: #e94560; }
+  button { background: #e94560; color: #fff; border: none; border-radius: 8px; padding: .7rem 1.8rem; cursor: pointer; font-size: 1rem; transition: opacity .2s; }
+  button:disabled { opacity: .4; cursor: default; }
+  #result { margin-top: 1.5rem; display: none; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-bottom: 1rem; }
+  .stat { background: #0f3460; border-radius: 8px; padding: .8rem 1rem; }
+  .stat span { display: block; font-size: .75rem; color: #aaa; }
+  .stat strong { font-size: 1.1rem; }
+  .badge { display: inline-block; padding: .2rem .7rem; border-radius: 20px; font-size: .8rem; font-weight: bold; margin-bottom: .8rem; }
+  .badge.yes { background: #c0392b; }
+  .badge.no { background: #27ae60; }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; margin-top: .5rem; }
+  th, td { padding: .5rem .7rem; border-bottom: 1px solid #0f3460; text-align: left; }
+  th { color: #aaa; font-weight: normal; }
+  #overlay-img { max-width: 100%; border-radius: 8px; margin-top: 1rem; }
+  #error { color: #e94560; margin-top: 1rem; font-size: .9rem; display: none; }
+  #loading { text-align: center; padding: 1rem; display: none; color: #aaa; }
+</style>
+</head>
+<body>
+<h1>Car Damage Detection</h1>
+<div class="card">
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp">
+    <p>Перетащите изображение или <u>нажмите для выбора</u></p>
+    <img id="preview">
+  </div>
+
+  <div class="controls">
+    <label>Confidence: <strong id="confVal">0.25</strong>
+      <input type="range" id="conf" min="0.05" max="0.95" step="0.05" value="0.25">
+    </label>
+    <button id="detectBtn" disabled>Определить повреждения</button>
+  </div>
+
+  <div id="error"></div>
+  <div id="loading">Анализируем...</div>
+
+  <div id="result">
+    <div id="damageBadge" class="badge"></div>
+    <div class="stats">
+      <div class="stat"><span>Повреждённых пикселей</span><strong id="sDamaged"></strong></div>
+      <div class="stat"><span>Доля повреждений</span><strong id="sRatio"></strong></div>
+    </div>
+    <table id="partsTable">
+      <thead><tr><th>Деталь</th><th>Площадь дет.</th><th>Повреждено</th><th>%</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <img id="overlay-img" alt="overlay">
+  </div>
+</div>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const preview   = document.getElementById('preview');
+const confSlider= document.getElementById('conf');
+const confVal   = document.getElementById('confVal');
+const detectBtn = document.getElementById('detectBtn');
+const result    = document.getElementById('result');
+const loading   = document.getElementById('loading');
+const errorDiv  = document.getElementById('error');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('over'); handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+confSlider.addEventListener('input', () => confVal.textContent = confSlider.value);
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => { preview.src = e.target.result; preview.style.display = 'block'; };
+  reader.readAsDataURL(file);
+  detectBtn.disabled = false;
+  result.style.display = 'none';
+  errorDiv.style.display = 'none';
+}
+
+detectBtn.addEventListener('click', async () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  detectBtn.disabled = true;
+  loading.style.display = 'block';
+  result.style.display = 'none';
+  errorDiv.style.display = 'none';
+
+  const form = new FormData();
+  form.append('file', file);
+
+  try {
+    const res = await fetch(`/api/v1/detect?conf=${confSlider.value}&include_overlay=true`, { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) { showError(data.detail || res.statusText); return; }
+    renderResult(data);
+  } catch(e) { showError(e.message); }
+  finally { loading.style.display = 'none'; detectBtn.disabled = false; }
+});
+
+function showError(msg) { errorDiv.textContent = '⚠ ' + msg; errorDiv.style.display = 'block'; }
+
+function renderResult(d) {
+  const badge = document.getElementById('damageBadge');
+  badge.textContent = d.damage_detected ? 'Повреждения обнаружены' : 'Повреждений не обнаружено';
+  badge.className = 'badge ' + (d.damage_detected ? 'yes' : 'no');
+
+  document.getElementById('sDamaged').textContent = d.damaged_pixel_count.toLocaleString();
+  document.getElementById('sRatio').textContent = (d.damage_ratio * 100).toFixed(2) + '%';
+
+  const tbody = document.querySelector('#partsTable tbody');
+  tbody.innerHTML = '';
+  (d.parts_analysis || []).forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${p.part_name}</td><td>${p.total_pixels.toLocaleString()}</td><td>${p.damage_pixels.toLocaleString()}</td><td>${p.damage_percentage.toFixed(1)}%</td>`;
+    tbody.appendChild(tr);
+  });
+  document.querySelector('#partsTable').style.display = d.parts_analysis?.length ? '' : 'none';
+
+  const ov = document.getElementById('overlay-img');
+  if (d.overlay_b64) { ov.src = 'data:image/jpeg;base64,' + d.overlay_b64; ov.style.display = 'block'; }
+  else ov.style.display = 'none';
+
+  result.style.display = 'block';
+}
+</script>
+</body>
+</html>
